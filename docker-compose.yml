@@ -3,14 +3,14 @@ services:
   app:
     build: ./demo
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       - db
       - redis
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bookstore
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/Lac_Viec_BookStore
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_PASSWORD: 0901178334bin
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
     restart: unless-stopped
@@ -19,9 +19,9 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_DB: bookstore
+      POSTGRES_DB: Lac_Viec_BookStore
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 0901178334bin
     ports:
       - "5432:5432"
     volumes:
