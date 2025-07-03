@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:15
+    image: postgres:14
     restart: always
     environment:
       POSTGRES_DB: Lac_Viec_BookStore
@@ -46,4 +46,3 @@ services:
 
 volumes:
   pgdata:
-
