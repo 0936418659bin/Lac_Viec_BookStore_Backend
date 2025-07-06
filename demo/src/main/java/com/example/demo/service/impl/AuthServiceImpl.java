@@ -3,6 +3,7 @@ package com.example.demo.service.impl;
 import com.example.demo.dto.AuthRequest;
 import com.example.demo.dto.AuthResponse;
 import com.example.demo.dto.RegisterRequest;
+import com.example.demo.dto.TokenRefreshResponse;
 import com.example.demo.entity.Role;
 import com.example.demo.entity.User;
 import com.example.demo.entity.enums.RoleName;
@@ -93,7 +94,47 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthResponse refreshToken(String refreshToken) {
+    public void logout(String refreshToken) {
+        // In a real implementation, you would typically:
+        // 1. Validate the refresh token
+        // 2. Delete/revoke the refresh token from the database
+        // 3. Optionally, add the token to a blacklist
+        
+        // For now, we'll just log the logout action
+        // You should replace this with your actual logout logic
+        if (refreshToken != null && !refreshToken.isEmpty()) {
+            // If you have a token blacklist or need to revoke the token, do it here
+            // For example:
+            // tokenBlacklistService.addToBlacklist(refreshToken);
+            // or
+            // refreshTokenService.revokeToken(refreshToken);
+            
+            // Clear the security context
+            SecurityContextHolder.clearContext();
+        }
+    }
+    
+    @Override
+    public User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new BadRequestException("No user is currently authenticated");
+        }
+        
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserPrincipal) {
+            String username = ((UserPrincipal) principal).getUsername();
+            return userRepository.findByUsername(username)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+        } else if (principal instanceof String && "anonymousUser".equals(principal)) {
+            throw new BadRequestException("No user is currently authenticated");
+        } else {
+            throw new BadRequestException("Unexpected principal type: " + principal.getClass().getName());
+        }
+    }
+    
+    @Override
+    public TokenRefreshResponse refreshToken(String refreshToken) {
         if (!tokenProvider.validateJwtToken(refreshToken)) {
             throw new BadRequestException("Invalid refresh token");
         }
@@ -102,23 +143,10 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
 
-        // Generate new tokens
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                UserPrincipal.create(user),
-                null,
-                user.getAuthorities()
-        );
+        // Generate new access token
+        String newAccessToken = tokenProvider.generateTokenFromUsername(username, tokenProvider.getJwtExpirationMs());
         
-        String newAccessToken = tokenProvider.generateJwtToken(authentication);
-        String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
-
-        return AuthResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
-                .id(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .fullName(user.getFullName())
-                .build();
+        // Return the token refresh response
+        return new TokenRefreshResponse(newAccessToken, refreshToken);
     }
 }

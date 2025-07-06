@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.time.Instant;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
@@ -16,6 +17,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     int deleteByUser(User user);
     
     boolean existsByTokenAndRevokedFalseAndExpiredFalse(String token);
+    
+    Optional<RefreshToken> findByUserId(Long userId);
     
     void deleteAllByExpiryDateBefore(Instant now);
 }

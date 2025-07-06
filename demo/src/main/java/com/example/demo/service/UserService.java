@@ -91,13 +91,18 @@ public class UserService {
     /**
      * Update an existing user
      */
+    private boolean hasAdminRole(UserPrincipal userPrincipal) {
+        return userPrincipal.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+    }
+
     @Transactional
     public User updateUser(Long id, UserDto userDto, UserPrincipal currentUser) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
         // Check if the current user is the owner or an admin
-        if (!currentUser.isAdmin() && !user.getId().equals(currentUser.getId())) {
+        if (!hasAdminRole(currentUser) && !user.getId().equals(currentUser.getId())) {
             throw new BadRequestException("You don't have permission to update this user");
         }
 
@@ -131,7 +136,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
         // Check if the current user is the owner or an admin
-        if (!currentUser.isAdmin() && !user.getId().equals(currentUser.getId())) {
+        if (!hasAdminRole(currentUser) && !user.getId().equals(currentUser.getId())) {
             throw new BadRequestException("You don't have permission to delete this user");
         }
 
