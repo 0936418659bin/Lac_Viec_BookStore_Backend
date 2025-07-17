@@ -1,48 +1,61 @@
-version: '3.8'
 services:
   app:
-    build: ./demo
+    build:
+      context: ./demo
+      dockerfile: Dockerfile
+    container_name: bookstore-backend
     ports:
-      - "8081:8080"
-    depends_on:
-      - db
-      - redis
+      - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/Lac_Viec_BookStore
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 0901178334bin
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/Lac_Viec_BookStore?currentSchema=bookstore
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=0901178334bin
+      # JWT Configuration
+      - APP_JWT_SECRET=bookStoreSecretKey12345678901234567890123456789012
+      - APP_JWT_ISSUER=bookstore-backend
+      - APP_JWT_AUDIENCE=bookstore-client
+      - APP_JWT_EXPIRATION_MS=86400000  # 24 hours
+      - APP_JWT_REFRESH_EXPIRATION_MS=604800000  # 7 days
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   db:
-    image: postgres:14
-    restart: always
+    image: postgres:15
+    container_name: postgres-db
     environment:
-      POSTGRES_DB: Lac_Viec_BookStore
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 0901178334bin
+      - POSTGRES_DB=Lac_Viec_BookStore
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=0901178334bin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7
-    restart: always
-    ports:
-      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   pgadmin:
     image: dpage/pgadmin4
-    restart: always
+    container_name: pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
     ports:
       - "5050:80"
     depends_on:
       - db
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  postgres_data:
