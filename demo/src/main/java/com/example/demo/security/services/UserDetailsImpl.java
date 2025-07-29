@@ -19,6 +19,7 @@ public class UserDetailsImpl implements UserDetails {
     private final Long id;
     private final String username;
     private final String email;
+    private final String avatar;
     private final boolean enabled;
 
     @JsonIgnore
@@ -26,11 +27,12 @@ public class UserDetailsImpl implements UserDetails {
 
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserDetailsImpl(Long id, String username, String email, String password,
+    public UserDetailsImpl(Long id, String username, String email, String avatar, String password,
                            Collection<? extends GrantedAuthority> authorities, boolean enabled) {
         this.id = id;
         this.username = username;
         this.email = email;
+        this.avatar = avatar;
         this.password = password;
         this.authorities = authorities;
         this.enabled = enabled;
@@ -75,6 +77,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getId(),
                 Optional.ofNullable(user.getUsername()).orElse(""),
                 Optional.ofNullable(user.getEmail()).orElse(""),
+                Optional.ofNullable(user.getAvatar()).orElse(""),
                 Optional.ofNullable(user.getPassword()).orElse(""),
                 authorities,
                 isEnabled

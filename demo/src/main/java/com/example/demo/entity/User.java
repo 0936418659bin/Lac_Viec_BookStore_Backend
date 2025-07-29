@@ -77,6 +77,9 @@ public class User {
     @Column(name = "updated_at")
     private Date updatedAt;
 
+    @Column(name = "avatar", length = 255)
+    private String avatar;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @BatchSize(size = 10)
     @JsonIgnore
