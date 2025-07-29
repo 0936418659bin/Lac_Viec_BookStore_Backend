@@ -26,6 +26,11 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.example.demo.service.FileStorageService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,10 +46,12 @@ public class AuthController {
     @Autowired private AuthenticationManager authenticationManager;
     @Autowired private RoleRepository roleRepository;
     @Autowired private PasswordEncoder encoder;
+    @Autowired private FileStorageService fileStorageService;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        logger.info("Login attempt for user: {}", loginRequest.getUsername());
         if (loginRequest == null) return badRequest("Yêu cầu đăng nhập không hợp lệ!");
         String username = Optional.ofNullable(loginRequest.getUsername()).orElse("");
 
@@ -69,7 +76,9 @@ public class AuthController {
             String refreshToken = generateRefreshToken(authentication);
 
             return ResponseEntity.ok(new JwtResponse(jwt, refreshToken, user.getId(), user.getUsername(),
-                    Optional.ofNullable(user.getEmail()).orElse(""), roles));
+                    Optional.ofNullable(user.getEmail()).orElse(""), 
+                    Optional.ofNullable(user.getAvatar()).orElse(""), 
+                    roles));
 
         } catch (Exception e) {
             logError("AUTHENTICATION ERROR", e);
@@ -96,6 +105,7 @@ public class AuthController {
                     userDetails.getId(),
                     userDetails.getUsername(),
                     Optional.ofNullable(userDetails.getEmail()).orElse(""),
+                    Optional.ofNullable(userDetails.getAvatar()).orElse(""),
                     getRoles(userDetails)));
 
         } catch (Exception e) {
@@ -120,46 +130,167 @@ public class AuthController {
         try {
             UserDetailsImpl userDetails = (UserDetailsImpl) loadUserDetails(jwtUtils.getUserNameFromJwtToken(token));
             return ResponseEntity.ok(new JwtResponse(token, null, userDetails.getId(), userDetails.getUsername(),
-                    userDetails.getEmail(), getRoles(userDetails)));
+                    userDetails.getEmail(), Optional.ofNullable(userDetails.getAvatar()).orElse(""), getRoles(userDetails)));
         } catch (Exception e) {
             return unauthorized("Không tìm thấy thông tin người dùng");
         }
     }
 
-    @PostMapping("/signup")
+    @PostMapping(value = "/signup", consumes = {"multipart/form-data"})
     @Transactional
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+    public ResponseEntity<?> registerUser(
+            @RequestPart(value = "userData", required = false) String userDataJson,
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "email", required = false) String email,
+            @RequestParam(value = "password", required = false) String password,
+            @RequestParam(value = "fullName", required = false) String fullName,
+            @RequestParam(value = "phone", required = false) String phone,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatarFile) {
+        
+        logger.info("Received signup request");
+        
         try {
-            if (userRepository.existsByUsername(signUpRequest.getUsername()))
-                return badRequest("Error: Username is already taken!");
-            if (userRepository.existsByEmail(signUpRequest.getEmail()))
-                return badRequest("Error: Email is already in use!");
-
-            User user = new User(signUpRequest.getUsername(), signUpRequest.getEmail(),
-                    encoder.encode(signUpRequest.getPassword()));
-            user.setFullName(signUpRequest.getFullName());
-            user.setPhone(signUpRequest.getPhone());
-
-            User savedUser = userRepository.save(user);
-            Set<String> strRoles = Optional.ofNullable(signUpRequest.getRoles()).orElse(Collections.emptySet());
-
-            if (strRoles.isEmpty()) {
-                assignRole(savedUser, ERole.ROLE_USER);
-            } else {
-                for (String role : strRoles) {
-                    try {
-                        assignRole(savedUser, ERole.valueOf("ROLE_" + role.toUpperCase()));
-                    } catch (IllegalArgumentException e) {
-                        assignRole(savedUser, ERole.ROLE_USER);
-                    }
-                }
+            // 1. Parse request data
+            SignupRequest signUpRequest = parseSignupRequest(userDataJson, username, email, password, fullName, phone);
+            if (signUpRequest == null) {
+                return badRequest("Invalid user data. Please provide either userData JSON or individual fields");
             }
-            userRepository.save(savedUser);
-            return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+            
+            // 2. Validate input
+            if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+                return badRequest("Error: Username is already taken!");
+            }
+            if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+                return badRequest("Error: Email is already in use!");
+            }
+            
+            // 3. Handle avatar upload
+            String avatarPath = handleAvatarUpload(avatarFile);
+            if (avatarPath != null) {
+                signUpRequest.setAvatar(avatarPath);
+            }
+            
+            // 4. Create and save user
+            User user = createUserFromRequest(signUpRequest);
+            
+            // 5. Assign default role
+            assignDefaultRole(user);
+            
+            // 6. Save user to database
+            User savedUser = userRepository.save(user);
+            logger.info("User registered successfully: {}", savedUser.getUsername());
+            
+            // 7. Create UserDetails for token generation
+            UserDetails userDetails = UserDetailsImpl.build(savedUser);
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                userDetails.getAuthorities()
+            );
+            
+            // 8. Generate tokens
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            String refreshToken = jwtUtils.generateRefreshToken(authentication);
+            
+            // 8. Tạo URL đầy đủ cho ảnh đại diện
+            String avatarUrl = savedUser.getAvatar() != null ? 
+                "/api/avatar/" + savedUser.getAvatar().substring(savedUser.getAvatar().lastIndexOf('/') + 1) : 
+                null;
+            
+            // 9. Trả về response với URL ảnh đại diện đầy đủ
+            return buildSuccessResponse(jwt, refreshToken, savedUser, avatarUrl);
+            
         } catch (Exception e) {
-            logger.error("Error during user registration for username: {}", signUpRequest.getUsername(), e);
-            return ResponseEntity.status(500).body(new MessageResponse("Internal server error during registration"));
+            logger.error("Error during user registration: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(
+                new MessageResponse("Error: " + e.getMessage())
+            );
         }
+    }
+    
+    private SignupRequest parseSignupRequest(String userDataJson, String username, String email, 
+                                           String password, String fullName, String phone) {
+        SignupRequest signUpRequest = new SignupRequest();
+        
+        // Try to parse from JSON first
+        if (userDataJson != null && !userDataJson.isEmpty()) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                signUpRequest = objectMapper.readValue(userDataJson, SignupRequest.class);
+                logger.info("Parsed signup request from JSON");
+                return signUpRequest;
+            } catch (JsonProcessingException e) {
+                logger.error("Error parsing userData JSON: {}", e.getMessage());
+                return null;
+            }
+        } 
+        // Fall back to individual fields
+        else if (username != null && email != null && password != null) {
+            signUpRequest.setUsername(username);
+            signUpRequest.setEmail(email);
+            signUpRequest.setPassword(password);
+            signUpRequest.setFullName(fullName);
+            signUpRequest.setPhone(phone);
+            logger.info("Created signup request from individual fields");
+            return signUpRequest;
+        }
+        
+        return null;
+    }
+    
+    private String handleAvatarUpload(MultipartFile avatarFile) {
+        if (avatarFile == null || avatarFile.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            return fileStorageService.storeFile(avatarFile);
+        } catch (Exception e) {
+            logger.error("Could not store avatar: {}", e.getMessage());
+            return null; // Continue without avatar if upload fails
+        }
+    }
+    
+    private User createUserFromRequest(SignupRequest signUpRequest) {
+        User user = new User();
+        user.setUsername(signUpRequest.getUsername());
+        user.setEmail(signUpRequest.getEmail());
+        user.setPassword(encoder.encode(signUpRequest.getPassword()));
+        user.setFullName(signUpRequest.getFullName());
+        user.setPhone(signUpRequest.getPhone());
+        user.setAvatar(signUpRequest.getAvatar());
+        assignDefaultRole(user); // Gán role mặc định
+        return user;
+    }
+    
+    private void assignDefaultRole(User user) {
+        Role userRole = roleRepository.findByName(ERole.ROLE_USER)
+            .orElseThrow(() -> new RuntimeException("Error: Default role ROLE_USER not found"));
+        user.getRoles().add(userRole);
+    }
+    
+    private ResponseEntity<?> buildSuccessResponse(String jwt, String refreshToken, User user) {
+        return buildSuccessResponse(jwt, refreshToken, user, null);
+    }
+    
+    private ResponseEntity<?> buildSuccessResponse(String jwt, String refreshToken, User user, String avatarUrl) {
+        List<String> roles = user.getRoles().stream()
+            .map(role -> role.getName().name())
+            .collect(Collectors.toList());
+            
+        // Sử dụng avatarUrl nếu được cung cấp, nếu không dùng avatar từ user
+        String finalAvatarUrl = (avatarUrl != null) ? avatarUrl : user.getAvatar();
+            
+        return ResponseEntity.ok(new JwtResponse(
+            jwt,
+            refreshToken,
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            finalAvatarUrl,  // Sử dụng URL ảnh đã được xử lý
+            roles
+        ));
     }
 
     // === Utility methods ===

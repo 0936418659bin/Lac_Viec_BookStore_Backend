@@ -106,14 +106,21 @@ public class WebSecurityConfig {
             // Cấu hình phân quyền truy cập
             .authorizeHttpRequests(auth -> 
                 auth
-                    // Cho phép truy cập công khai các endpoint đăng nhập, đăng ký, refresh token
                     .requestMatchers(
                         "/api/auth/signin",
                         "/api/auth/signup",
                         "/api/auth/refreshtoken",
                         "/api/auth/verify",
-                            "/api/auth/logout",
                         "/api/test/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/swagger-resources/**",
+                        "/webjars/**"
+                    ).permitAll()
+                    // Yêu cầu xác thực cho tất cả các request khác
+                    .requestMatchers("/api/avatar/**").authenticated()
+                    .requestMatchers(
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
