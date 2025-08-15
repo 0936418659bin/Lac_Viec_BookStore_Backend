@@ -2,74 +2,84 @@ package com.example.demo.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import java.time.LocalDate;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "books")
-public class Book {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@PrimaryKeyJoinColumn(name = "product_id")
+public class Book extends Product {
+    @Transient
+    private String title; // Sử dụng transient vì đã có name từ Product
 
-    @Column(nullable = false)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String author;
 
-    @Column(name = "publish_year")
-    private Integer publishYear;
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
-
-    private Integer pages;
-    private String language;
+    @Column(length = 100)
     private String publisher;
+    
+    @Column(length = 20)
     private String isbn;
-    private String imageUrl;
-    private Integer stockQuantity;
+    
+    @Column(length = 100)
+    private String genre;
+    
+    @Column(name = "page_count")
+    private Integer pageCount;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "book_categories",
-        joinColumns = @JoinColumn(name = "book_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    private Set<Category> categories = new HashSet<>();
+    @Column(name = "publication_date")
+    private LocalDate publicationDate;
 
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    @Column(length = 50)
+    private String dimensions;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "weight_grams")
+    private Integer weightGrams;
+
+    @Column(name = "additional_info", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String additionalInfo;
+
+    public Book() {
+        super();
+        this.setType(ProductType.BOOK);
+    }
+
+    @PostLoad
+    private void syncWithProduct() {
+        // Đồng bộ name từ Product sang title
+        if (this.getName() != null) {
+            this.title = this.getName();
+        }
+    }
 
     @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
     @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+    public void prePersist() {
+        // Đồng bộ title vào name của Product trước khi lưu
+        if (this.title != null) {
+            this.setName(this.title);
+        }
     }
 
-    // Helper methods
+    // Các phương thức tiện ích
     public void addCategory(Category category) {
-        this.categories.add(category);
-        category.getBooks().add(this);
+        if (category != null) {
+            this.getCategories().add(category);
+            category.getProducts().add(this);
+        }
     }
 
     public void removeCategory(Category category) {
-        this.categories.remove(category);
-        category.getBooks().remove(this);
+        if (category != null) {
+            this.getCategories().remove(category);
+            category.getProducts().remove(this);
+        }
     }
 }

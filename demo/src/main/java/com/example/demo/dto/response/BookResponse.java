@@ -1,27 +1,40 @@
 package com.example.demo.dto.response;
 
 import com.example.demo.model.Category;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Data
+@Slf4j
 public class BookResponse {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    
     private Long id;
     private String title;
-    private String description;
     private String author;
-    private Integer publishYear;
-    private BigDecimal price;
-    private Integer pages;
-    private String language;
-    private String publisher;
     private String isbn;
+    private String description;
+    private BigDecimal price;
     private String imageUrl;
+    private List<String> imageUrls;
     private Integer stockQuantity;
+    private String publisher;
+    private String genre;
+    private Integer pageCount;
+    private LocalDate publicationDate;
+    private String dimensions;
+    private Integer weightGrams;
+    private Object additionalInfo;
     private Set<String> categories;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -30,19 +43,40 @@ public class BookResponse {
         BookResponse response = new BookResponse();
         response.setId(book.getId());
         response.setTitle(book.getTitle());
-        response.setDescription(book.getDescription());
         response.setAuthor(book.getAuthor());
-        response.setPublishYear(book.getPublishYear());
-        response.setPrice(book.getPrice());
-        response.setPages(book.getPages());
-        response.setLanguage(book.getLanguage());
-        response.setPublisher(book.getPublisher());
         response.setIsbn(book.getIsbn());
-        response.setImageUrl(book.getImageUrl());
+        response.setDescription(book.getDescription());
+        response.setPrice(book.getPrice());
+        
+        // Xử lý ảnh
+        List<String> allImageUrls = book.getAllImageUrls();
+        response.setImageUrls(allImageUrls);
+        response.setImageUrl(!allImageUrls.isEmpty() ? allImageUrls.get(0) : null);
+        
         response.setStockQuantity(book.getStockQuantity());
+        response.setPublisher(book.getPublisher());
+        response.setGenre(book.getGenre());
+        response.setPageCount(book.getPageCount());
+        response.setPublicationDate(book.getPublicationDate());
+        response.setDimensions(book.getDimensions());
+        response.setWeightGrams(book.getWeightGrams());
+        
+        // Xử lý additionalInfo
+        if (book.getAdditionalInfo() != null && !book.getAdditionalInfo().trim().isEmpty()) {
+            try {
+                // Parse lại JSON để đảm bảo định dạng đúng
+                response.setAdditionalInfo(objectMapper.readValue(book.getAdditionalInfo(), Object.class));
+            } catch (Exception e) {
+                log.warn("Failed to parse additionalInfo as JSON: {}", book.getAdditionalInfo());
+                response.setAdditionalInfo(book.getAdditionalInfo());
+            }
+        }
+        
+        // Lấy danh sách category names
         response.setCategories(book.getCategories().stream()
                 .map(Category::getName)
                 .collect(Collectors.toSet()));
+                
         response.setCreatedAt(book.getCreatedAt());
         response.setUpdatedAt(book.getUpdatedAt());
         return response;
