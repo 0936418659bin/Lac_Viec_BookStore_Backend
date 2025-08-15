@@ -16,7 +16,7 @@ import java.util.Arrays;
 @SpringBootApplication
 @EnableCaching
 @EnableJpaAuditing
-@EntityScan("com.example.demo.entity")
+@EntityScan({"com.example.demo.entity", "com.example.demo.model"})
 @EnableJpaRepositories("com.example.demo.repository")
 public class DemoApplication {
 
