@@ -4,6 +4,9 @@ import com.example.demo.dto.FlashSaleDTO;
 import com.example.demo.dto.FlashSaleItemDTO;
 import com.example.demo.service.FlashSaleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,8 +50,9 @@ public class PublicFlashSaleController {
      * Lấy danh sách sản phẩm đang được flash sale
      */
     @GetMapping("/items/active")
-    public ResponseEntity<List<FlashSaleItemDTO>> getActiveFlashSaleItems() {
-        List<FlashSaleItemDTO> activeItems = flashSaleService.getActiveFlashSaleItems();
+    public ResponseEntity<Page<FlashSaleItemDTO>> getActiveFlashSaleItems(
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<FlashSaleItemDTO> activeItems = flashSaleService.getActiveFlashSaleItems(pageable);
         return ResponseEntity.ok(activeItems);
     }
 
