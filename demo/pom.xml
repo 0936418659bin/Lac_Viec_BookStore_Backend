@@ -43,6 +43,16 @@
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.modelmapper</groupId>
+			<artifactId>modelmapper</artifactId>
+			<version>3.1.1</version> <!-- Hoặc version mới nhất -->
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+			<version>2.0.5</version> <!-- or the latest version -->
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
@@ -139,10 +149,22 @@
             <version>1.5</version>
         </dependency>
 
-<!-- Spring Data Redis -->
+		<!-- Redis -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
+		<!-- Redis Cache -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+
+		<!-- Redis Session (nếu cần) -->
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-data-redis</artifactId>
 		</dependency>
 
 		<!-- OAuth2 Client -->
@@ -196,7 +218,21 @@
 			<artifactId>bucket4j-jcache</artifactId>
 			<version>8.0.1</version>
 		</dependency>
+
+		<!-- SpringDoc OpenAPI for API documentation -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>2.0.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.14.0</version>
+		</dependency>
 	</dependencies>
+
+
 
 	<build>
 		<plugins>
