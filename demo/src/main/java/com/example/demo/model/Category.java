@@ -22,9 +22,6 @@ public class Category {
 
     private String description;
     
-    @Column(nullable = false)
-    private String type = "book";
-    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     @ToString.Exclude
@@ -58,7 +55,6 @@ public class Category {
         updatedAt = LocalDateTime.now();
     }
 
-    // Helper methods
     public void addChild(Category child) {
         children.add(child);
         child.setParent(this);
