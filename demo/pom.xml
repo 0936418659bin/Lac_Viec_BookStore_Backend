@@ -192,6 +192,13 @@
 			<version>3.1.1</version>
 		</dependency>
 
+		<!-- Model Mapper -->
+        <dependency>
+            <groupId>org.modelmapper</groupId>
+            <artifactId>modelmapper</artifactId>
+            <version>3.1.1</version>
+        </dependency>
+
 		<!-- SpringDoc OpenAPI (cho Swagger) -->
 		<dependency>
 			<groupId>org.springdoc</groupId>

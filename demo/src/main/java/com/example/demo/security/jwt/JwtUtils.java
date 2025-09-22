@@ -68,8 +68,7 @@ public class JwtUtils {
 
     private Key key() {
         String secret = jwtProperties.getSecret();
-        logger.info("[JWT] Using secret (raw): {} (length: {})", 
-            secret, secret != null ? secret.length() : 0);
+        logger.info("[JWT] Using secret (raw): " + secret + " (length: " + (secret != null ? secret.length() : 0) + ")");
             
         // Sử dụng secret trực tiếp dưới dạng UTF-8 bytes
         // Điều này đảm bảo tính tương thích với jwt.io

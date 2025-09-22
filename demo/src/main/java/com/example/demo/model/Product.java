@@ -32,7 +32,7 @@ public abstract class Product {
     private String description;
 
     @Column(name = "stock")
-    private Integer stockQuantity = 0;
+    private Integer stockQuantity = Integer.valueOf(0);
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 50)
@@ -52,7 +52,10 @@ public abstract class Product {
     private LocalDateTime updatedAt;
 
     @Column(name = "active")
-    private Boolean active = true;
+    private Boolean active = Boolean.TRUE;
+
+    @Column(name = "is_flash_sale")
+    private Boolean isFlashSale = Boolean.FALSE;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

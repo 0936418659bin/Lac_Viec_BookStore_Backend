@@ -1,0 +1,12 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "java -jar target/*.jar --spring.profiles.active=railway"
+
+[build.args]
+NIXPACKS_JDK_VERSION = "21"
+NIXPACKS_MAVEN_VERSION = "3.9.6"
+
+[build.environment]
+SPRING_PROFILES_ACTIVE = "railway"

@@ -65,7 +65,7 @@ public class User {
     private String phone;
 
     @Column(name = "enabled")
-    private Boolean enabled = true;
+    private Boolean enabled = Boolean.TRUE;
 
     @Column(name = "last_login")
     @Temporal(TemporalType.TIMESTAMP)

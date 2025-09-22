@@ -3,7 +3,7 @@ package com.example.demo.security.services;
 import com.example.demo.entity.Role;
 import com.example.demo.entity.User;
 import com.example.demo.entity.UserRole;
-import com.example.demo.repository.UserRepository;
+import com.example.demo.repository.auth.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,7 +69,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             }
 
             String password = user.getPassword() != null ? user.getPassword() : "";
-            boolean enabled = user.getEnabled() != null && user.getEnabled();
+            Boolean enabled = user.getEnabled();
 
             user.setEnabled(enabled);
 

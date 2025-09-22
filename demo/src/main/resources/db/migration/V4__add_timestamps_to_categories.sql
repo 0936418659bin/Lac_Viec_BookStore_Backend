@@ -1,4 +1,0 @@
--- Thêm cột thời gian vào bảng categories
-ALTER TABLE categories
-ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;

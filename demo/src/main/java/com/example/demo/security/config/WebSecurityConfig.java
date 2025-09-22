@@ -43,12 +43,12 @@ public class WebSecurityConfig {
     public DaoAuthenticationProvider authenticationProvider() {
         logger.info("===== CONFIGURING DAO AUTHENTICATION PROVIDER =====");
         logger.info("1. Creating DaoAuthenticationProvider");
-        
+
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider() {
             @Override
             protected void additionalAuthenticationChecks(UserDetails userDetails,
-                    UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-                
+                                                          UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+
                 try {
                     super.additionalAuthenticationChecks(userDetails, authentication);
                     if (logger.isDebugEnabled()) {
@@ -66,15 +66,15 @@ public class WebSecurityConfig {
 
         logger.info("2. Setting user details service");
         authProvider.setUserDetailsService(userDetailsService);
-        
+
         logger.info("3. Setting password encoder");
         PasswordEncoder encoder = passwordEncoder();
         logger.info("3.1. Password encoder class: {}", encoder.getClass().getName());
         authProvider.setPasswordEncoder(encoder);
-        
+
         // Bắt lỗi để hiển thị thông báo rõ ràng hơn
         authProvider.setHideUserNotFoundExceptions(false);
-        
+
         logger.info("4. DaoAuthenticationProvider configured successfully");
         return authProvider;
     }
@@ -92,64 +92,67 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         logger.info("===== CONFIGURING SPRING SECURITY =====");
-        
+
         // Tắt CSRF vì chúng ta sử dụng JWT
         http.csrf(csrf -> csrf.disable())
-            // Xử lý lỗi xác thực
-            .exceptionHandling(exception -> 
-                exception.authenticationEntryPoint(unauthorizedHandler)
-            )
-            // Cấu hình session không lưu trữ trạng thái (stateless)
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            // Cấu hình phân quyền truy cập
-            .authorizeHttpRequests(auth -> 
-                auth
-                    .requestMatchers(
-                        "/api/auth/signin",
-                        "/api/auth/signup",
-                        "/api/auth/refreshtoken",
-                        "/api/auth/verify",
-                        "/api/test/**",
-                        "/api/categories",
-                        "/api/categories/**",
-                            "/api/books",
-                            "/api/books/**",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/swagger-resources/**",
-                        "/webjars/**"
-                    ).permitAll()
-                    // Yêu cầu xác thực cho tất cả các request khác
-                    .requestMatchers("/api/avatar/**").authenticated()
-                    .requestMatchers(
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/api/actuator/health" // Cho phép public health endpoint
-                    ).permitAll()
-                    // Yêu cầu xác thực cho tất cả các request khác
-                    .anyRequest().authenticated()
-            )
-            // Tắt cache cho các response nhạy cảm
-            .headers(headers -> 
-                headers
-                    .cacheControl(cache -> cache.disable())
-                    .frameOptions(frame -> frame.sameOrigin())
-                    .httpStrictTransportSecurity(hsts -> 
-                        hsts.includeSubDomains(true).preload(true)
-                    )
-            )
-            // Thêm bộ lọc JWT trước bộ lọc xác thực mặc định
-            .addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+                // Xử lý lỗi xác thực
+                .exceptionHandling(exception ->
+                        exception.authenticationEntryPoint(unauthorizedHandler)
+                )
+                // Cấu hình session không lưu trữ trạng thái (stateless)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                // Cấu hình phân quyền truy cập
+                .authorizeHttpRequests(auth ->
+                        auth
+                                .requestMatchers(
+                                        "/api/auth/signin",
+                                        "/api/auth/signup",
+                                        "/api/auth/refreshtoken",
+                                        "/api/auth/verify",
+                                        "/api/test/**",
+                                        "/api/categories",
+                                        "/api/categories/**",
+                                        "/api/books",
+                                        "/api/books/**",
+                                        "/v3/api-docs/**",
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/swagger-resources/**",
+                                        "/webjars/**",
+                                        "/api/public/flash-sales/**"
+                                ).permitAll()
+                                // Yêu cầu xác thực cho tất cả các request khác
+                                .requestMatchers("/api/users/**").authenticated()
+                                .requestMatchers("/api/avatar/**").authenticated()
+                                .requestMatchers(
+                                        "/v3/api-docs/**",
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/api/actuator/health" // Cho phép public health endpoint
+                                ).permitAll()
+                                // Yêu cầu xác thực cho tất cả các request khác
+                                .anyRequest().authenticated()
+                )
+                // Tắt cache cho các response nhạy cảm
+                .headers(headers ->
+                        headers
+                                .cacheControl(cache -> cache.disable())
+                                .frameOptions(frame -> frame.sameOrigin())
+                                .httpStrictTransportSecurity(hsts ->
+                                        hsts.includeSubDomains(true).preload(true)
+                                )
+                )
+                // Thêm bộ lọc JWT trước bộ lọc xác thực mặc định
+                .addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         // Cấu hình CORS nếu cần
-        http.cors(cors -> {})
-            // Thêm authentication provider
-            .authenticationProvider(authenticationProvider());
-            
+        http.cors(cors -> {
+                })
+                // Thêm authentication provider
+                .authenticationProvider(authenticationProvider());
+
         logger.info("Spring Security configuration completed");
         return http.build();
     }
