@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
@@ -23,6 +25,16 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.getAllCategories(pageable));
     }
 
+    @GetMapping("/parents")
+    public ResponseEntity<List<CategoryResponse>> getParentCategories() {
+        return ResponseEntity.ok(categoryService.getParentCategories());
+    }
+
+    @GetMapping("/parent/{parentId}")
+    public ResponseEntity<List<CategoryResponse>> getChildCategories(@PathVariable Long parentId) {
+        return ResponseEntity.ok(categoryService.getChildCategories(parentId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CategoryResponse> getCategoryById(@PathVariable Long id) {
         return ResponseEntity.ok(categoryService.getCategoryById(id));
@@ -32,7 +44,7 @@ public class CategoryController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request) {
         return new ResponseEntity<>(
-                categoryService.createCategory(request), 
+                categoryService.createCategory(request),
                 HttpStatus.CREATED
         );
     }
@@ -40,7 +52,7 @@ public class CategoryController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CategoryResponse> updateCategory(
-            @PathVariable Long id, 
+            @PathVariable Long id,
             @Valid @RequestBody CategoryRequest request) {
         return ResponseEntity.ok(categoryService.updateCategory(id, request));
     }

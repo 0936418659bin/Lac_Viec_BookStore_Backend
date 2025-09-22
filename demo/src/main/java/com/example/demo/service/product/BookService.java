@@ -184,21 +184,21 @@ public class BookService {
 
     private void updateBookCategories(Book book, Set<Long> categoryIds) {
         if (categoryIds == null || categoryIds.isEmpty()) {
+            book.getCategories().clear();
             return;
         }
 
-        // Xóa các danh mục cũ không còn trong danh sách mới
+        // Remove categories not in the new set
         book.getCategories().removeIf(category -> !categoryIds.contains(category.getId()));
 
-        // Thêm các danh mục mới
+        // Add new categories
         Set<Long> existingCategoryIds = book.getCategories().stream()
                 .map(Category::getId)
                 .collect(Collectors.toSet());
 
         List<Category> newCategories = categoryIds.stream()
                 .filter(id -> !existingCategoryIds.contains(id))
-                .map(categoryId -> categoryService.findById(categoryId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + categoryId)))
+                .map(categoryService::findById)
                 .toList();
 
         newCategories.forEach(book::addCategory);
