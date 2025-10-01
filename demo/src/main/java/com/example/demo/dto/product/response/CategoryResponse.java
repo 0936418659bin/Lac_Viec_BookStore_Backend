@@ -15,6 +15,7 @@ public class CategoryResponse {
     private Long parentId;
     private String parentName;
     private List<CategoryResponse> children = Collections.emptyList();
+    private boolean hasChildren;
 
     public static CategoryResponse fromEntity(Category category) {
         if (category == null) {
@@ -25,6 +26,7 @@ public class CategoryResponse {
         response.setId(category.getId());
         response.setName(category.getName());
         response.setDescription(category.getDescription());
+        response.setHasChildren(category.getChildren() != null && !category.getChildren().isEmpty());
 
         if (category.getParent() != null) {
             response.setParentId(category.getParent().getId());
