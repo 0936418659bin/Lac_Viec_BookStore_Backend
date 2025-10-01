@@ -1,206 +1,191 @@
 package com.example.demo.service.product;
 
+import com.example.demo.dto.product.request.BaseProductRequest;
 import com.example.demo.dto.product.request.BookRequest;
 import com.example.demo.dto.product.response.BookResponse;
 import com.example.demo.exception.common.ResourceNotFoundException;
-import com.example.demo.model.Book;
+import com.example.demo.mapper.ProductMapper;
 import com.example.demo.model.Category;
+import com.example.demo.model.product.Book;
+import com.example.demo.model.product.ProductType;
 import com.example.demo.repository.product.BookRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.demo.repository.product.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-public class BookService {
+public class BookService implements ProductService<Book, BookResponse> {
+    
     private final BookRepository bookRepository;
-    private final CategoryService categoryService;
-    private final ProductImageService productImageService;
-    private final ObjectMapper objectMapper;
+    private final CategoryRepository categoryRepository;
+    private final ProductMapper<Book, BookRequest, BookResponse> productMapper;
 
-    @Transactional(readOnly = true)
-    public Page<BookResponse> getAllBooks(Pageable pageable, String keyword, Long categoryId) {
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            if (categoryId != null) {
-                return bookRepository.findByNameContainingIgnoreCaseAndCategoryId(keyword, categoryId, pageable)
-                        .map(BookResponse::fromBook);
-            }
-            return bookRepository.findByNameContainingIgnoreCase(keyword, pageable)
-                    .map(BookResponse::fromBook);
-        } else if (categoryId != null) {
-            return bookRepository.findByCategoryId(categoryId, pageable)
-                    .map(BookResponse::fromBook);
-        }
-        return bookRepository.findAll(pageable)
-                .map(BookResponse::fromBook);
+    @Override
+    public ProductType getProductType() {
+        return ProductType.BOOK;
     }
 
-    @Transactional(readOnly = true)
-    public BookResponse getBookById(Long id) {
-        Book book = bookRepository.findByIdWithImages(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
-        return BookResponse.fromBook(book);
-    }
-
+    @Override
     @Transactional
-    public BookResponse createBook(BookRequest request) {
-        // Tạo mới sách
-        Book book = new Book();
-        updateBookFromRequest(book, request);
+    public BookResponse create(BaseProductRequest request) {
+        if (!(request instanceof BookRequest bookRequest)) {
+            throw new IllegalArgumentException("Invalid request type for Book");
+        }
         
-        // Lưu sách để có ID trước
+        log.info("Creating new book: {}", bookRequest.getName());
+        
+        Book book = productMapper.toEntity(bookRequest);
+        book.setType(ProductType.BOOK);
+        
+        // Set categories
+        if (bookRequest.getCategoryIds() != null && !bookRequest.getCategoryIds().isEmpty()) {
+            Set<Category> categories = new HashSet<>(categoryRepository.findAllById(bookRequest.getCategoryIds()));
+            book.setCategories(categories);
+        }
+        
         Book savedBook = bookRepository.save(book);
+        log.info("Created book with ID: {}", savedBook.getId());
         
-        // Xử lý ảnh nếu có
-        if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
-            // Xóa tất cả ảnh cũ nếu có
-            savedBook.getImages().clear();
-            
-            // Thêm ảnh mới (chỉ thêm mỗi ảnh một lần)
-            Set<String> uniqueImageUrls = new LinkedHashSet<>(request.getImageUrls());
-            int index = 0;
-            for (String imageUrl : uniqueImageUrls) {
-                if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                    savedBook.addImage(imageUrl.trim(), index == 0); // Ảnh đầu tiên là thumbnail
-                    index++;
-                }
-            }
-            
-            // Lưu lại sách với ảnh đã cập nhật
-            savedBook = bookRepository.save(savedBook);
-        }
-        
-        return BookResponse.fromBook(savedBook);
+        return productMapper.toResponse(savedBook);
     }
 
+    @Override
     @Transactional
-    public BookResponse updateBook(Long id, BookRequest request) {
-        Book book = bookRepository.findByIdWithImages(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + id));
-
-        updateBookFromRequest(book, request);
-
-        // Xử lý ảnh nếu có
-        if (request.getImageUrls() != null) {
-            // Xóa tất cả ảnh cũ
-            book.getImages().clear();
-
-            // Thêm ảnh mới (chỉ thêm mỗi ảnh một lần)
-            Set<String> uniqueImageUrls = new LinkedHashSet<>(request.getImageUrls());
-            int index = 0;
-            for (String imageUrl : uniqueImageUrls) {
-                if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                    book.addImage(imageUrl.trim(), index == 0); // Ảnh đầu tiên là thumbnail
-                    index++;
-                }
-            }
-        } else if (request.getImageUrl() != null && !request.getImageUrl().trim().isEmpty()) {
-            // Backward compatibility
-            book.getImages().clear();
-            book.addImage(request.getImageUrl().trim(), true);
+    public BookResponse update(Long id, BaseProductRequest request) {
+        if (!(request instanceof BookRequest bookRequest)) {
+            throw new IllegalArgumentException("Invalid request type for Book");
         }
-
-        Book updatedBook = bookRepository.save(book);
-        return BookResponse.fromBook(updatedBook);
-    }
-
-    @Transactional
-    public void deleteBook(Long id) {
-        Book book = bookRepository.findById(id)
+        
+        log.info("Updating book with ID: {}", id);
+        
+        Book existingBook = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + id));
         
-        // Xóa quan hệ với danh mục trước khi xóa sách
-        book.getCategories().forEach(category -> category.getProducts().remove(book));
-        book.getCategories().clear();
-        
-        bookRepository.delete(book);
-    }
-
-    @Transactional
-    public Book saveBook(Book book, List<String> imageUrls) {
-        // Lưu sách
-        Book savedBook = bookRepository.save(book);
-        
-        // Lưu ảnh sản phẩm (tự động xóa ảnh cũ nếu có)
-        if (imageUrls != null && !imageUrls.isEmpty()) {
-            productImageService.saveProductImages(book, imageUrls, true);
-        }
-        
-        return savedBook;
-    }
-
-    @Transactional(readOnly = true)
-    public Book getBookWithImages(Long id) {
-        Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
-        
-        // Load ảnh (nếu cần)
-        book.getImages().size(); // Force load lazy collection
-        
-        return book;
-    }
-
-    private void updateBookFromRequest(Book book, BookRequest request) {
-        book.setTitle(request.getTitle());
-        book.setAuthor(request.getAuthor());
-        book.setIsbn(request.getIsbn());
-        book.setDescription(request.getDescription());
-        book.setPrice(request.getPrice());
-        book.setStockQuantity(request.getStockQuantity());
-        book.setPublisher(request.getPublisher());
-        book.setGenre(request.getGenre());
-        book.setPageCount(request.getPageCount());
-        book.setPublicationDate(request.getPublicationDate());
-        book.setDimensions(request.getDimensions());
-        book.setWeightGrams(request.getWeightGrams());
-        
-        // Xử lý additionalInfo dưới dạng String
-        if (request.getAdditionalInfo() != null) {
-            try {
-                // Kiểm tra xem có phải là JSON hợp lệ không
-                objectMapper.readTree(request.getAdditionalInfo());
-                book.setAdditionalInfo(request.getAdditionalInfo());
-            } catch (Exception e) {
-                // Nếu không phải JSON hợp lệ, lưu dưới dạng string thông thường
-                book.setAdditionalInfo("\"" + request.getAdditionalInfo() + "\"");
-            }
-        } else {
-            book.setAdditionalInfo(null);
-        }
+        productMapper.updateFromRequest(bookRequest, existingBook);
         
         // Update categories if provided
-        if (request.getCategoryIds() != null) {
-            updateBookCategories(book, request.getCategoryIds());
+        if (bookRequest.getCategoryIds() != null) {
+            Set<Category> categories = new HashSet<>(categoryRepository.findAllById(bookRequest.getCategoryIds()));
+            existingBook.getCategories().clear();
+            existingBook.getCategories().addAll(categories);
         }
+        
+        Book updatedBook = bookRepository.save(existingBook);
+        log.info("Updated book with ID: {}", id);
+        
+        return productMapper.toResponse(updatedBook);
     }
 
-    private void updateBookCategories(Book book, Set<Long> categoryIds) {
-        if (categoryIds == null || categoryIds.isEmpty()) {
-            book.getCategories().clear();
-            return;
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        log.info("Deleting book with ID: {}", id);
+        
+        if (!bookRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Không tìm thấy sách với ID: " + id);
+        }
+        
+        bookRepository.deleteById(id);
+        log.info("Deleted book with ID: {}", id);
+    }
+
+    @Override
+    public BookResponse getById(Long id) {
+        log.debug("Fetching book with ID: {}", id);
+        
+        return bookRepository.findById(id)
+                .map(productMapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookResponse> getAllProducts(Pageable pageable) {
+        log.debug("Fetching all books with pagination");
+        return bookRepository.findAll(pageable)
+                .map(productMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookResponse> search(String keyword, List<Long> categoryIds, Pageable pageable) {
+        log.debug("Searching books with keyword: {}, categoryIds: {}", keyword, categoryIds);
+
+        // Start with an empty specification using allOf() with no arguments
+        Specification<Book> spec = Specification.allOf();
+
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String searchTerm = "%" + keyword.toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("name")), searchTerm),
+                    cb.like(cb.lower(root.get("description")), searchTerm),
+                    cb.like(cb.lower(root.get("author")), searchTerm),
+                    cb.like(cb.lower(root.get("publisher")), searchTerm)
+            ));
         }
 
-        // Remove categories not in the new set
-        book.getCategories().removeIf(category -> !categoryIds.contains(category.getId()));
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            spec = spec.and((root, query, cb) -> {
+                var join = root.join("categories");
+                return join.get("id").in(categoryIds);
+            });
+        }
 
-        // Add new categories
-        Set<Long> existingCategoryIds = book.getCategories().stream()
-                .map(Category::getId)
-                .collect(Collectors.toSet());
+        return bookRepository.findAll(spec, pageable)
+                .map(productMapper::toResponse);
+    }
 
-        List<Category> newCategories = categoryIds.stream()
-                .filter(id -> !existingCategoryIds.contains(id))
-                .map(categoryService::findById)
-                .toList();
+    @Override
+    @Transactional
+    public void updateProductStock(Long productId, int quantity) {
+        log.info("Updating stock for book ID: {}, quantity: {}", productId, quantity);
+        Book book = bookRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + productId));
+        
+        int newStock = book.getStockQuantity() + quantity;
+        if (newStock < 0) {
+            throw new IllegalStateException("Số lượng tồn kho không đủ");
+        }
+        
+        book.setStockQuantity(newStock);
+        bookRepository.save(book);
+        log.info("Updated stock for book ID: {}, new stock: {}", productId, newStock);
+    }
 
-        newCategories.forEach(book::addCategory);
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookResponse> searchProducts(String keyword, ProductType type, Long categoryId, Pageable pageable) {
+        log.debug("Searching books with keyword: {}, type: {}, categoryId: {}", keyword, type, categoryId);
+        
+        // Ensure we're only searching for books
+        if (type != null && type != ProductType.BOOK) {
+            return Page.empty(pageable);
+        }
+        
+        List<Long> categoryIds = categoryId != null ? List.of(categoryId) : null;
+        return search(keyword, categoryIds, pageable);
+    }
+
+    @Override
+    public boolean supports(ProductType type) {
+        return type == ProductType.BOOK;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Book getProductEntityById(Long id) {
+        return bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + id));
     }
 }

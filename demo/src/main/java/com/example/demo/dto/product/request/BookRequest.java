@@ -1,51 +1,42 @@
 package com.example.demo.dto.product.request;
 
 import jakarta.validation.constraints.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Set;
 
-@Data
-public class BookRequest {
-    @NotBlank(message = "Title is required")
-    private String title;
-
-    private String description;
-
-    @NotBlank(message = "Author is required")
+@Getter
+@Setter
+public class BookRequest extends BaseProductRequest {
+    @NotBlank(message = "Tác giả không được để trống")
+    @Size(max = 100, message = "Tên tác giả không được vượt quá 100 ký tự")
     private String author;
 
-    @NotNull(message = "Price is required")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than 0")
-    private BigDecimal price;
+    @Size(max = 100, message = "Nhà xuất bản không được vượt quá 100 ký tự")
+    private String publisher;
 
-    @Min(value = 1, message = "Page count must be at least 1")
+    @NotBlank(message = "ISBN không được để trống")
+    @Pattern(regexp = "^(?=(?:\\D*\\d){10}(?:(?:\\D*\\d){3})?$)[\\d-]+",
+            message = "ISBN không hợp lệ")
+    private String isbn;
+
+    @Size(max = 100, message = "Thể loại không được vượt quá 100 ký tự")
+    private String genre;
+
+    @PositiveOrZero(message = "Số trang phải là số dương")
     private Integer pageCount;
 
-    private String language;
-    private String publisher;
-    private String isbn;
-    private String imageUrl; // Giữ lại cho tương thích ngược
-    private List<String> imageUrls; // Thêm trường mới cho nhiều ảnh
-
-    @Min(value = 0, message = "Stock quantity cannot be negative")
-    private Integer stockQuantity;
-
-    private String genre;
     private LocalDate publicationDate;
+
+    @Size(max = 50, message = "Kích thước không được vượt quá 50 ký tự")
     private String dimensions;
+
+    @Size(max = 50, message = "Ngôn ngữ không được vượt quá 50 ký tự")
+    private String language;
+
+    @PositiveOrZero(message = "Trọng lượng phải là số dương")
     private Integer weightGrams;
+
     private String additionalInfo;
-    private Set<Long> categoryIds;
-
-    public List<String> getImageUrls() {
-        return imageUrls;
-    }
-
-    public void setImageUrls(List<String> imageUrls) {
-        this.imageUrls = imageUrls;
-    }
 }
