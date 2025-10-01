@@ -1,14 +1,19 @@
-package com.example.demo.model;
+package com.example.demo.model.product;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "product_images")
 public class ProductImage {
     @Id
