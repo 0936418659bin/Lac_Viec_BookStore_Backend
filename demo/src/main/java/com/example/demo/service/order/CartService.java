@@ -8,7 +8,7 @@ import com.example.demo.entity.User;
 import com.example.demo.exception.common.ResourceNotFoundException;
 import com.example.demo.model.Cart;
 import com.example.demo.model.CartItem;
-import com.example.demo.model.Product;
+import com.example.demo.model.product.Product;
 import com.example.demo.repository.order.CartItemRepository;
 import com.example.demo.repository.order.CartRepository;
 import com.example.demo.repository.product.ProductRepository;

@@ -9,6 +9,7 @@ public class ResourceNotFoundException extends RuntimeException {
     private String fieldName;
     private Object fieldValue;
 
+    // Constructor mới với thông tin chi tiết
     public ResourceNotFoundException(String resourceName, String fieldName, Object fieldValue) {
         super(String.format("%s not found with %s : '%s'", resourceName, fieldName, fieldValue));
         this.resourceName = resourceName;
@@ -16,7 +17,7 @@ public class ResourceNotFoundException extends RuntimeException {
         this.fieldValue = fieldValue;
     }
 
-    // Giữ lại các constructor cũ để tương thích ngược
+    // Các constructor cũ để đảm bảo tương thích ngược
     public ResourceNotFoundException() {
         super();
     }
@@ -29,7 +30,11 @@ public class ResourceNotFoundException extends RuntimeException {
         super(message, cause);
     }
 
-    // Getters
+    public ResourceNotFoundException(Throwable cause) {
+        super(cause);
+    }
+
+    // Getter methods
     public String getResourceName() {
         return resourceName;
     }

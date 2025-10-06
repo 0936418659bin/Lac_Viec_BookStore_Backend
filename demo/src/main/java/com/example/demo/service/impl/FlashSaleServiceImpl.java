@@ -7,7 +7,7 @@ import com.example.demo.exception.common.BadRequestException;
 import com.example.demo.exception.common.ResourceNotFoundException;
 import com.example.demo.model.FlashSale;
 import com.example.demo.model.FlashSaleItem;
-import com.example.demo.model.Product;
+import com.example.demo.model.product.Product;
 import com.example.demo.repository.promotion.FlashSaleItemRepository;
 import com.example.demo.repository.promotion.FlashSaleRepository;
 import com.example.demo.service.promotion.FlashSaleService;
@@ -174,8 +174,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         }
 
         // Kiểm tra sản phẩm có tồn tại không
-        Product product = productService.findById(itemRequest.getProductId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + itemRequest.getProductId()));
+        Product product = productService.getProductEntityById(itemRequest.getProductId());
 
         // Tạo mới FlashSaleItem
         FlashSaleItem flashSaleItem = new FlashSaleItem();
@@ -230,11 +229,10 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional
     public void addToFlashSale(Long productId, int quantity) {
-        // Kiểm tra sản phẩm có tồn tại không
-        Product product = productService.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
+        // Find the product
+        Product product = productService.getProductEntityById(productId);
 
-        // Tìm đợt flash sale đang hoạt động
+        // Find active flash sales
         LocalDateTime now = LocalDateTime.now();
         List<FlashSale> activeFlashSales = flashSaleRepository.findActiveFlashSales(now);
 
@@ -242,30 +240,30 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             throw new BadRequestException("Hiện không có đợt flash sale nào đang diễn ra");
         }
 
-        // Lấy đợt flash sale đầu tiên đang hoạt động
+        // Get the first active flash sale
         FlashSale flashSale = activeFlashSales.get(0);
 
-        // Kiểm tra sản phẩm đã có trong đợt flash sale chưa
+        // Check if product already exists in the flash sale
         Optional<FlashSaleItem> existingItem = flashSaleItemRepository.findByFlashSaleIdAndProductId(
                 flashSale.getId(), productId);
 
         if (existingItem.isPresent()) {
-            // Nếu đã tồn tại, cập nhật số lượng
+            // If it exists, update the quantity
             FlashSaleItem item = existingItem.get();
-            item.setQuantity(Integer.valueOf(item.getQuantity() + quantity));
+            item.setQuantity(item.getQuantity() + quantity);
             flashSaleItemRepository.save(item);
         } else {
-            // Nếu chưa tồn tại, tạo mới
-            FlashSaleItem flashSaleItem = new FlashSaleItem();
-            flashSaleItem.setFlashSale(flashSale);
-            flashSaleItem.setProduct(product);
-            flashSaleItem.setPrice(product.getPrice().multiply(BigDecimal.valueOf(0.8))); // Giảm giá 20%
-            flashSaleItem.setDiscountPrice(BigDecimal.valueOf(20));
-            flashSaleItem.setQuantity(Integer.valueOf(quantity));
-            flashSaleItem.setSoldQuantity(Integer.valueOf(0));
-            flashSaleItem.setIsActive(Boolean.TRUE);
-            
-            flashSaleItemRepository.save(flashSaleItem);
+            // If it doesn't exist, create a new item with default values
+            FlashSaleItem newItem = new FlashSaleItem();
+            newItem.setFlashSale(flashSale);
+            newItem.setProduct(product);
+            newItem.setQuantity(quantity);
+            // Set default values for other required fields
+            newItem.setPrice(product.getPrice()); // or some default price
+            newItem.setDiscountPrice(BigDecimal.ZERO); // or some default discount
+            newItem.setIsActive(true);
+
+            flashSaleItemRepository.save(newItem);
         }
     }
 
