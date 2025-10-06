@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import com.example.demo.model.product.Product;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
