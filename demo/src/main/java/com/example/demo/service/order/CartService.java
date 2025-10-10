@@ -314,7 +314,7 @@ public class CartService {
         CartItemDTO dto = modelMapper.map(item, CartItemDTO.class);
         dto.setProductId(item.getProduct().getId());
         dto.setProductName(item.getProduct().getName());
-        dto.setProductImage(item.getProduct().getImageUrl());
+        dto.setProductImage(item.getProduct().getMainImageUrl());
         dto.setSubTotal(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         return dto;
     }

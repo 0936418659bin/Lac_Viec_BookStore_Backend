@@ -7,23 +7,28 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
+@Validated
 @RestController
 @RequestMapping("/api/v1/books")
 @RequiredArgsConstructor
@@ -32,23 +37,44 @@ public class BookController {
 
     private final BookService bookService;
 
-    @GetMapping
-    @Operation(summary = "Get all books with pagination and filtering",
-        description = "Search and filter books with pagination. Results can be sorted by various fields.")
-    public ResponseEntity<Page<BookResponse>> getAllBooks(
-            @Parameter(description = "Search by title, author, ISBN, or description")
-            @RequestParam(required = false) String keyword,
-            
-            @Parameter(description = "Filter by category ID")
-            @RequestParam(required = false) Long categoryId,
-            
-            @Parameter(description = "Pagination and sorting parameters. Default sort: createdAt,desc")
-            @PageableDefault(
-                size = 20,
-                sort = "createdAt",
-                direction = Sort.Direction.DESC
-            ) Pageable pageable) {
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create a new book")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Book created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Admin role required")
+    })
+    public ResponseEntity<?> createBook(
+            HttpServletRequest httpRequest,
+            @Valid @org.springframework.web.bind.annotation.RequestBody BookRequest bookRequest) {
 
+        log.info("\n=== INCOMING REQUEST ===");
+        log.info("Method: {}", httpRequest.getMethod());
+        log.info("Content-Type: {}", httpRequest.getContentType());
+        log.info("Request Body: {}", bookRequest.toString());
+
+        try {
+            BookResponse response = bookService.create(bookRequest);
+            log.info("Book created successfully with ID: {}", response.getId());
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (Exception e) {
+            log.error("Error creating book: ", e);
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi tạo sách: " + e.getMessage());
+        }
+    }
+
+    @GetMapping
+    @Operation(summary = "Get all books with pagination")
+    public ResponseEntity<Page<BookResponse>> getAllBooks(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("Fetching books with keyword: {}, categoryId: {}", keyword, categoryId);
         return ResponseEntity.ok(bookService.search(
                 keyword,
                 categoryId != null ? List.of(categoryId) : null,
@@ -58,54 +84,46 @@ public class BookController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a book by ID")
-    public ResponseEntity<BookResponse> getBookById(
-            @Parameter(description = "ID of the book to retrieve", required = true)
-            @PathVariable Long id) {
-        return ResponseEntity.ok(bookService.getById(id));
-    }
-
-    @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create a new book",
-        description = "Create a new book. Requires ADMIN role. Maximum 5 images allowed.")
-    @RequestBody(
-        description = "Book object that needs to be added to the store",
-        required = true,
-        content = @Content(
-            mediaType = "application/json",
-            schema = @Schema(implementation = BookRequest.class)
-        )
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Book created successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid input"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - Admin role required")
-    })
-    public ResponseEntity<BookResponse> createBook(
-            @Valid @RequestBody BookRequest bookRequest) {
-        BookResponse response = bookService.create(bookRequest);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    public ResponseEntity<?> getBookById(@PathVariable Long id) {
+        log.info("Fetching book with ID: {}", id);
+        try {
+            return ResponseEntity.ok(bookService.getById(id));
+        } catch (Exception e) {
+            log.error("Error fetching book: ", e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Không tìm thấy sách với ID: " + id);
+        }
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update an existing book")
-    public ResponseEntity<BookResponse> updateBook(
-            @Parameter(description = "ID of the book to update", required = true)
+    @Operation(summary = "Update a book")
+    public ResponseEntity<?> updateBook(
             @PathVariable Long id,
-            
-            @Valid @RequestBody BookRequest bookRequest) {
-        return ResponseEntity.ok(bookService.update(id, bookRequest));
+            @Valid @org.springframework.web.bind.annotation.RequestBody BookRequest bookRequest) {
+
+        log.info("Updating book with ID: {}", id);
+        try {
+            return ResponseEntity.ok(bookService.update(id, bookRequest));
+        } catch (Exception e) {
+            log.error("Error updating book: ", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Lỗi khi cập nhật sách: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete a book")
-    public ResponseEntity<Void> deleteBook(
-            @Parameter(description = "ID of the book to delete", required = true)
-            @PathVariable Long id) {
-        bookService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deleteBook(@PathVariable Long id) {
+        log.info("Deleting book with ID: {}", id);
+        try {
+            bookService.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            log.error("Error deleting book: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi xóa sách: " + e.getMessage());
+        }
     }
 }
