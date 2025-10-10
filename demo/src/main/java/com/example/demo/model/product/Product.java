@@ -36,7 +36,7 @@ public abstract class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "stock_quantity")
+    @Column(name = "stock")
     private Integer stockQuantity = 0;
 
     @Enumerated(EnumType.STRING)
@@ -47,24 +47,13 @@ public abstract class Product {
     @Column(length = 20)
     private ProductStatus status = ProductStatus.ACTIVE;
 
-    @Column(name = "is_featured")
-    private Boolean isFeatured = false;
+//    @Column(name = "status")
+//    private Boolean isFeatured = false;
 
     @Column(name = "is_flash_sale")
     private Boolean isFlashSale = false;
 
-    @Column(name = "image_url")
-    private String imageUrl;
-
-    @ManyToMany
-    @JoinTable(
-        name = "product_categories",
-        joinColumns = @JoinColumn(name = "product_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    private Set<Category> categories = new HashSet<>();
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<ProductImage> images = new HashSet<>();
 
     @CreationTimestamp
@@ -74,6 +63,38 @@ public abstract class Product {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Phương thức tiện ích cho quản lý ảnh
+    public void addImage(ProductImage image) {
+        images.add(image);
+        image.setProduct(this);
+    }
+
+    public void removeImage(ProductImage image) {
+        images.remove(image);
+        image.setProduct(null);
+    }
+
+    public String getMainImageUrl() {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        // Lấy ảnh đại diện (thumbnail) hoặc ảnh đầu tiên
+        return images.stream()
+                .filter(ProductImage::isThumbnail)
+                .findFirst()
+                .map(ProductImage::getImageUrl)
+                .orElse(images.iterator().next().getImageUrl());
+    }
+
+    @ManyToMany
+    @JoinTable(
+        name = "product_categories",
+        joinColumns = @JoinColumn(name = "product_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories = new HashSet<>();
+
 
     // Các phương thức tiện ích
     public void addCategory(Category category) {

@@ -4,9 +4,11 @@ import com.example.demo.dto.product.request.BookRequest;
 import com.example.demo.dto.product.response.BookResponse;
 import com.example.demo.model.Category;
 import com.example.demo.model.product.Book;
+import com.example.demo.model.product.ProductImage;
 import org.mapstruct.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,7 +32,7 @@ public abstract class BookMapper implements ProductMapper<Book, BookRequest, Boo
         book.setDescription(request.getDescription());
         book.setPrice(request.getPrice());
         book.setStockQuantity(request.getStockQuantity());
-        book.setIsFeatured(request.getIsFeatured());
+//        book.setIsFeatured(request.getIsFeatured());
         book.setAuthor(request.getAuthor());
         book.setPublisher(request.getPublisher());
         book.setIsbn(request.getIsbn());
@@ -44,7 +46,12 @@ public abstract class BookMapper implements ProductMapper<Book, BookRequest, Boo
 
         // Set image URL (assuming single image for now)
         if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
-            book.setImageUrl(request.getImageUrls().get(0));
+            for (int i = 0; i < request.getImageUrls().size(); i++) {
+                ProductImage image = new ProductImage();
+                image.setImageUrl(request.getImageUrls().get(i));
+                image.setThumbnail(i == 0); // Đặt ảnh đầu tiên làm ảnh đại diện
+                book.addImage(image);
+            }
         }
 
         return book;
@@ -62,15 +69,18 @@ public abstract class BookMapper implements ProductMapper<Book, BookRequest, Boo
         response.setDescription(book.getDescription());
         response.setPrice(book.getPrice());
         response.setStockQuantity(book.getStockQuantity());
-        response.setIsFeatured(book.getIsFeatured());
+//        response.setIsFeatured(book.getIsFeatured());
         response.setCreatedAt(book.getCreatedAt());
         response.setUpdatedAt(book.getUpdatedAt());
         response.setStatus(book.getStatus());
         response.setType(book.getType());
 
         // Set image URLs (as a list with single item)
-        if (book.getImageUrl() != null) {
-            response.setImageUrls(java.util.Collections.singletonList(book.getImageUrl()));
+        if (book.getImages() != null && !book.getImages().isEmpty()) {
+            List<String> imageUrls = book.getImages().stream()
+                    .map(ProductImage::getImageUrl)
+                    .collect(Collectors.toList());
+            response.setImageUrls(imageUrls);
         }
 
         // Map categories
@@ -113,11 +123,16 @@ public abstract class BookMapper implements ProductMapper<Book, BookRequest, Boo
         if (request.getStockQuantity() != null) {
             entity.setStockQuantity(request.getStockQuantity());
         }
-        if (request.getIsFeatured() != null) {
-            entity.setIsFeatured(request.getIsFeatured());
-        }
+//        if (request.getIsFeatured() != null) {
+//            entity.setIsFeatured(request.getIsFeatured());
+//        }
         if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
-            entity.setImageUrl(request.getImageUrls().get(0));
+            // Clear existing images and add new ones
+            entity.getImages().clear();
+            ProductImage mainImage = new ProductImage();
+            mainImage.setImageUrl(request.getImageUrls().get(0));
+            mainImage.setThumbnail(true);
+            entity.addImage(mainImage);
         }
 
         // Update book specific fields
